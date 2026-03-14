@@ -125,7 +125,9 @@ class WiFiMonitorClient(ctk.CTk):
             except: pass
         self.btn_connect.configure(text="Connect", fg_color=["#3B8ED0", "#1F6AA5"])
         self.lbl_status.configure(text="Disconnected")
-        self.display_label.configure(image=None, text="No Signal")
+        try:
+            self.display_label.configure(image=None, text="No Signal")
+        except: pass
         self.tk_image = None
         self.updating_frame = False
 
@@ -184,17 +186,36 @@ class WiFiMonitorClient(ctk.CTk):
         return data
 
     def update_frame(self, pil_image):
-        if not self.running: return
-        w, h = self.display_frame.winfo_width(), self.display_frame.winfo_height()
-        if w > 10 and h > 10:
-            img_w, img_h = pil_image.size
-            ratio = min(w/img_w, h/img_h)
-            new_w = int(img_w * ratio)
-            new_h = int(img_h * ratio)
-            # Use CTKImage to fix TclError and handle scaling better
-            self.tk_image = ctk.CTkImage(light_image=pil_image, dark_image=pil_image, size=(new_w, new_h))
-            self.display_label.configure(image=self.tk_image, text="")
-        self.updating_frame = False
+        if not self.running: 
+            self.updating_frame = False
+            return
+        
+        try:
+            w, h = self.display_frame.winfo_width(), self.display_frame.winfo_height()
+            if w > 10 and h > 10:
+                img_w, img_h = pil_image.size
+                ratio = min(w/img_w, h/img_h)
+                new_w = int(img_w * ratio)
+                new_h = int(img_h * ratio)
+                
+                # Keep reference to old image to prevent immediate GC
+                prev_image = self.tk_image
+                
+                # Use CTKImage for better compatibility and scaling
+                self.tk_image = ctk.CTkImage(light_image=pil_image, dark_image=pil_image, size=(new_w, new_h))
+                
+                try:
+                    self.display_label.configure(image=self.tk_image, text="")
+                except Exception as e:
+                    print(f"Update frame error: {e}")
+                
+                # Explicitly release old image reference
+                del prev_image
+        except Exception as e:
+            print(f"Critical frame error: {e}")
+        finally:
+            # Crucially ensure the flag is reset so the next frame can be processed
+            self.updating_frame = False
 
     def show_progress(self):
         self.progress.pack(side="right", padx=10, pady=5)
