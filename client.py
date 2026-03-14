@@ -35,6 +35,9 @@ class WiFiMonitorClient(ctk.CTk):
         if not os.path.exists(self.downloads_path):
             os.makedirs(self.downloads_path)
         
+        self.tk_image = None
+        self.updating_frame = False
+        
         self.init_ui()
 
     def init_ui(self):
@@ -123,6 +126,8 @@ class WiFiMonitorClient(ctk.CTk):
         self.btn_connect.configure(text="Connect", fg_color=["#3B8ED0", "#1F6AA5"])
         self.lbl_status.configure(text="Disconnected")
         self.display_label.configure(image=None, text="No Signal")
+        self.tk_image = None
+        self.updating_frame = False
 
     def receive_loop(self):
         while self.running:
@@ -135,8 +140,10 @@ class WiFiMonitorClient(ctk.CTk):
                 if data is None: break
                 
                 if ptype == TYPE_FRAME:
-                    image = Image.open(io.BytesIO(data))
-                    self.after(0, lambda: self.update_frame(image))
+                    if not self.updating_frame:
+                        self.updating_frame = True
+                        image = Image.open(io.BytesIO(data))
+                        self.after(0, lambda: self.update_frame(image))
                 elif ptype == TYPE_CLIPBOARD:
                     text = data.decode('utf-8')
                     pyperclip.copy(text)
@@ -187,6 +194,7 @@ class WiFiMonitorClient(ctk.CTk):
             # Use CTKImage to fix TclError and handle scaling better
             self.tk_image = ctk.CTkImage(light_image=pil_image, dark_image=pil_image, size=(new_w, new_h))
             self.display_label.configure(image=self.tk_image, text="")
+        self.updating_frame = False
 
     def show_progress(self):
         self.progress.pack(side="right", padx=10, pady=5)

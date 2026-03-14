@@ -277,8 +277,8 @@ class WiFiMonitorServer(ctk.CTk):
                     pil_img.save(buffer, format="JPEG", quality=self.quality)
                     self.send_packet(TYPE_FRAME, buffer.getvalue())
                     
-                    # Target 30 FPS
-                    time.sleep(1/30)
+                    # Target 20 FPS for stability
+                    time.sleep(1/20)
                 except Exception as e:
                     time.sleep(1)
 
