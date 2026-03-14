@@ -5,8 +5,9 @@ import struct
 import io
 import os
 import customtkinter as ctk
-import pyperclip
 from PIL import Image, ImageTk
+from tkinter import filedialog
+import pyperclip
 
 # Set appearance and theme
 ctk.set_appearance_mode("Dark")
@@ -61,6 +62,12 @@ class WiFiMonitorClient(ctk.CTk):
 
         self.btn_fullscreen = ctk.CTkButton(self.controls_frame, text="Full Screen", command=self.toggle_fullscreen, width=100, fg_color="#34495e", hover_color="#2c3e50")
         self.btn_fullscreen.pack(side="left", padx=5, pady=10)
+
+        self.btn_send = ctk.CTkButton(self.controls_frame, text="Send File", command=self.send_file_dialog, width=100, fg_color="#27ae60", hover_color="#219150")
+        self.btn_send.pack(side="left", padx=5, pady=10)
+
+        self.btn_clip = ctk.CTkButton(self.controls_frame, text="Sync Clip", command=self.send_clipboard, width=100, fg_color="#8e44ad", hover_color="#732d91")
+        self.btn_clip.pack(side="left", padx=5, pady=10)
 
         # Display Area
         self.display_frame = ctk.CTkFrame(self, fg_color="black")
@@ -177,9 +184,9 @@ class WiFiMonitorClient(ctk.CTk):
             ratio = min(w/img_w, h/img_h)
             new_w = int(img_w * ratio)
             new_h = int(img_h * ratio)
-            pil_image = pil_image.resize((new_w, new_h), Image.Resampling.LANCZOS)
-        self.tk_image = ImageTk.PhotoImage(pil_image)
-        self.display_label.configure(image=self.tk_image, text="")
+            # Use CTKImage to fix TclError and handle scaling better
+            self.tk_image = ctk.CTkImage(light_image=pil_image, dark_image=pil_image, size=(new_w, new_h))
+            self.display_label.configure(image=self.tk_image, text="")
 
     def show_progress(self):
         self.progress.pack(side="right", padx=10, pady=5)
@@ -199,7 +206,7 @@ class WiFiMonitorClient(ctk.CTk):
         if self.full_screen:
             self.controls_frame.grid_remove()
             self.status_bar.grid_remove()
-            self.display_frame.configure(padx=0, pady=0)
+            self.display_frame.grid_configure(padx=0, pady=0)
             self.display_frame.grid(row=0, column=0, rowspan=3, sticky="nsew")
         else: 
             self.exit_fullscreen()
@@ -209,9 +216,57 @@ class WiFiMonitorClient(ctk.CTk):
         self.attributes("-fullscreen", False)
         self.controls_frame.grid()
         self.status_bar.grid()
-        self.display_frame.configure(padx=20, pady=(0, 10))
+        self.display_frame.grid_configure(padx=20, pady=(0, 10))
         self.display_frame.grid(row=1, column=0, sticky="nsew")
         self.btn_fullscreen.configure(text="Full Screen")
+
+    def send_packet(self, ptype, data):
+        if not self.client_socket or not self.running: return
+        try:
+            header = struct.pack("!BI", ptype, len(data))
+            self.client_socket.sendall(header + data)
+        except Exception as e:
+            self.after(0, lambda: self.show_error(f"Send Error: {e}"))
+
+    def send_file_dialog(self):
+        if not self.running: return
+        filepath = filedialog.askopenfilename()
+        if filepath:
+            threading.Thread(target=self.process_file_send, args=(filepath,), daemon=True).start()
+
+    def process_file_send(self, filepath):
+        try:
+            filename = os.path.basename(filepath)
+            filesize = os.path.getsize(filepath)
+            import time # Ensure time is available for sleep
+            self.after(0, lambda: self.lbl_status.configure(text=f"Sending: {filename}"))
+            
+            # File Start
+            self.send_packet(TYPE_FILE_START, f"{filename}|{filesize}".encode('utf-8'))
+            
+            # Chunks
+            with open(filepath, "rb") as f:
+                while self.running:
+                    chunk = f.read(64 * 1024)
+                    if not chunk: break
+                    self.send_packet(TYPE_FILE_CHUNK, chunk)
+                    time.sleep(0.001)
+            
+            # File End
+            self.send_packet(TYPE_FILE_END, b"DONE")
+            self.after(0, lambda: self.lbl_status.configure(text=f"Sent: {filename}"))
+        except Exception as e:
+            self.after(0, lambda: self.show_error(str(e)))
+
+    def send_clipboard(self):
+        if not self.running: return
+        try:
+            text = pyperclip.paste()
+            if text:
+                self.send_packet(TYPE_CLIPBOARD, text.encode('utf-8'))
+                self.lbl_status.configure(text="Clipboard Synced to Server")
+        except Exception as e:
+            self.show_error(str(e))
 
 if __name__ == "__main__":
     app = WiFiMonitorClient()

@@ -36,6 +36,10 @@ class WiFiMonitorServer(ctk.CTk):
         self.quality = 70
         self.server_socket = None
         self.last_clipboard = ""
+        self.downloads_path = os.path.join(os.getcwd(), "downloads")
+        if not os.path.exists(self.downloads_path):
+            os.makedirs(self.downloads_path)
+        self.incoming_files = {} # socket -> file_info
         
         self.init_ui()
         self.add_log("Server Pro initialized. Ready to start.")
@@ -198,10 +202,63 @@ class WiFiMonitorServer(ctk.CTk):
                     self.clients.append(client_socket)
                     self.after(0, lambda: self.lbl_clients.configure(text=f"Connected Clients: {len(self.clients)}"))
                     self.add_log(f"Client {addr} connected.")
+                    threading.Thread(target=self.handle_client, args=(client_socket, addr), daemon=True).start()
                 else:
                     client_socket.send("FAIL".encode())
                     client_socket.close()
             except: break
+
+    def handle_client(self, client_socket, addr):
+        while self.streaming:
+            try:
+                header = self._recv_all(client_socket, 5)
+                if not header: break
+                ptype, size = struct.unpack("!BI", header)
+                data = self._recv_all(client_socket, size)
+                if data is None: break
+
+                if ptype == TYPE_CLIPBOARD:
+                    text = data.decode('utf-8')
+                    pyperclip.copy(text)
+                    self.add_log(f"Clipboard received from {addr}")
+                elif ptype == TYPE_FILE_START:
+                    decoded = data.decode('utf-8')
+                    name, fsize = decoded.split("|")
+                    self.incoming_files[client_socket] = {
+                        "name": name,
+                        "size": int(fsize),
+                        "received": 0,
+                        "handle": open(os.path.join(self.downloads_path, name), "wb")
+                    }
+                    self.add_log(f"Receiving file '{name}' from {addr}")
+                elif ptype == TYPE_FILE_CHUNK:
+                    if client_socket in self.incoming_files:
+                        self.incoming_files[client_socket]["handle"].write(data)
+                        self.incoming_files[client_socket]["received"] += len(data)
+                elif ptype == TYPE_FILE_END:
+                    if client_socket in self.incoming_files:
+                        self.incoming_files[client_socket]["handle"].close()
+                        self.add_log(f"File '{self.incoming_files[client_socket]['name']}' saved.")
+                        del self.incoming_files[client_socket]
+            except Exception as e:
+                self.add_log(f"Client {addr} error: {e}")
+                break
+        
+        if client_socket in self.clients:
+            self.clients.remove(client_socket)
+        self.after(0, lambda: self.lbl_clients.configure(text=f"Connected Clients: {len(self.clients)}"))
+        self.add_log(f"Client {addr} disconnected.")
+        client_socket.close()
+
+    def _recv_all(self, sock, n):
+        data = bytearray()
+        while len(data) < n:
+            try:
+                packet = sock.recv(n - len(data))
+                if not packet: return None
+                data.extend(packet)
+            except: return None
+        return data
 
     def capture_loop(self):
         with mss() as sct:
