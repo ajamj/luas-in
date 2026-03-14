@@ -37,6 +37,15 @@ WiFiMonitor Pro is a powerful, low-latency screen-sharing and productivity tool 
 4. Click **Start Server**.
 5. Use the **Send File** button to broadcast files or copy text to share it via the clipboard.
 
+### How to use Extended Mode (Monitor Eksternal)
+Agar Client bisa menjadi monitor kedua yang terpisah (Extended Mode), Windows harus "melihat" adanya monitor kedua di sisi Server.
+- **Opsi A (Fisik)**: Colokkan monitor fisik atau dummy HDMI plug ke Laptop Server.
+- **Opsi B (Virtual - Rekomendasi)**: Gunakan driver monitor virtual seperti [IddSampleDriver](https://github.com/roshkins/IddSampleDriver/releases) atau [usbmmIdd](https://www.amyuni.com/forum/viewtopic.php?t=3030).
+  1. Install driver tersebut di Windows Server.
+  2. Tekan `Win + P` di keyboard, pilih **Extend**.
+  3. Buka WiFiMonitor Server, pilih **Monitor 1** (atau Monitor 2 yang baru muncul).
+  4. Jalankan Client, maka Client akan menampilkan desktop kedua Anda.
+
 ### Client
 1. Run `python client.py`.
 2. Enter the Server's IP Address, Port, and Password.
