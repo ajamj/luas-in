@@ -59,6 +59,9 @@ class WiFiMonitorClient(ctk.CTk):
         self.btn_connect = ctk.CTkButton(self.controls_frame, text="Connect", command=self.toggle_connection, width=100)
         self.btn_connect.pack(side="left", padx=5, pady=10)
 
+        self.btn_fullscreen = ctk.CTkButton(self.controls_frame, text="Full Screen", command=self.toggle_fullscreen, width=100, fg_color="#34495e", hover_color="#2c3e50")
+        self.btn_fullscreen.pack(side="left", padx=5, pady=10)
+
         # Display Area
         self.display_frame = ctk.CTkFrame(self, fg_color="black")
         self.display_frame.grid(row=1, column=0, padx=20, pady=(0, 10), sticky="nsew")
@@ -198,7 +201,8 @@ class WiFiMonitorClient(ctk.CTk):
             self.status_bar.grid_remove()
             self.display_frame.configure(padx=0, pady=0)
             self.display_frame.grid(row=0, column=0, rowspan=3, sticky="nsew")
-        else: self.exit_fullscreen()
+        else: 
+            self.exit_fullscreen()
 
     def exit_fullscreen(self):
         self.full_screen = False
@@ -207,6 +211,7 @@ class WiFiMonitorClient(ctk.CTk):
         self.status_bar.grid()
         self.display_frame.configure(padx=20, pady=(0, 10))
         self.display_frame.grid(row=1, column=0, sticky="nsew")
+        self.btn_fullscreen.configure(text="Full Screen")
 
 if __name__ == "__main__":
     app = WiFiMonitorClient()

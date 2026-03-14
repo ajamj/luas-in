@@ -66,6 +66,9 @@ class WiFiMonitorServer(ctk.CTk):
         self.monitor_combo.set(self.get_monitors()[0])
         self.monitor_combo.grid(row=3, column=1, padx=10, pady=5, sticky="ew")
 
+        self.lbl_ext_info = ctk.CTkLabel(self.config_frame, text="💡 For Extended Mode, ensure Windows detects a 2nd display.", font=ctk.CTkFont(size=10, slant="italic"), text_color="gray")
+        self.lbl_ext_info.grid(row=4, column=0, columnspan=2, padx=10, pady=(0, 5), sticky="w")
+
         # Feature Toggles
         self.features_frame = ctk.CTkFrame(self)
         self.features_frame.grid(row=1, column=0, padx=20, pady=5, sticky="ew")
