@@ -1,0 +1,6 @@
+__pycache__/
+*.pyc
+.venv/
+downloads/
+.DS_Store
+*.swp
