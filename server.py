@@ -65,13 +65,19 @@ class WiFiMonitorServer(ctk.CTk):
         self.pass_input.insert(0, "1234")
         self.pass_input.grid(row=2, column=1, padx=10, pady=5, sticky="ew")
 
-        ctk.CTkLabel(self.config_frame, text="Target Monitor:").grid(row=3, column=0, padx=10, pady=5, sticky="w")
+        ctk.CTkLabel(self.config_frame, text="Server IP:").grid(row=3, column=0, padx=10, pady=5, sticky="w")
+        self.ip_display = ctk.CTkEntry(self.config_frame)
+        self.ip_display.insert(0, self.get_local_ip())
+        self.ip_display.configure(state="readonly")
+        self.ip_display.grid(row=3, column=1, padx=10, pady=5, sticky="ew")
+
+        ctk.CTkLabel(self.config_frame, text="Target Monitor:").grid(row=4, column=0, padx=10, pady=5, sticky="w")
         self.monitor_combo = ctk.CTkComboBox(self.config_frame, values=self.get_monitors())
         self.monitor_combo.set(self.get_monitors()[0])
-        self.monitor_combo.grid(row=3, column=1, padx=10, pady=5, sticky="ew")
+        self.monitor_combo.grid(row=4, column=1, padx=10, pady=5, sticky="ew")
 
         self.lbl_ext_info = ctk.CTkLabel(self.config_frame, text="💡 For Extended Mode, ensure Windows detects a 2nd display.", font=ctk.CTkFont(size=10, slant="italic"), text_color="gray")
-        self.lbl_ext_info.grid(row=4, column=0, columnspan=2, padx=10, pady=(0, 5), sticky="w")
+        self.lbl_ext_info.grid(row=5, column=0, columnspan=2, padx=10, pady=(0, 5), sticky="w")
 
         # Feature Toggles
         self.features_frame = ctk.CTkFrame(self)
@@ -112,6 +118,17 @@ class WiFiMonitorServer(ctk.CTk):
                 label = f"Monitor {i} ({monitor['width']}x{monitor['height']})" if i > 0 else "All Monitors"
                 monitors.append(label)
             return monitors
+
+    def get_local_ip(self):
+        try:
+            # Connect to an external address to find local IP
+            s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            s.connect(("8.8.8.8", 80))
+            ip = s.getsockname()[0]
+            s.close()
+            return ip
+        except:
+            return "127.0.0.1"
 
     def add_log(self, msg):
         timestamp = time.strftime("%H:%M:%S")
