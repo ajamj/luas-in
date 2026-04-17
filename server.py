@@ -40,7 +40,7 @@ class WiFiMonitorServer(ctk.CTk):
 
         # Core State
         self.streaming = False
-        # ... (sisanya diinisialisasi ulang dari self.core)
+        self.clients = []
         self.quality = 70
         self.server_socket = None
         self.last_clipboard = ""
