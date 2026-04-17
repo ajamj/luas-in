@@ -377,16 +377,42 @@ class WiFiMonitorServer(ctk.CTk):
                     continue
                 try:
                     mon_str = self.monitor_combo.get()
-                    monitor_idx = (
-                        0 if mon_str == "All Monitors" else int(mon_str.split(" ")[1])
-                    )
-                    if monitor_idx >= len(sct.monitors):
-                        monitor_idx = 0
 
-                    img = sct.grab(sct.monitors[monitor_idx])
-                    pil_img = Image.frombytes("RGB", img.size, img.bgra, "raw", "BGRX")
+                    if mon_str == "All Monitors":
+                        # Extended mode: stitch all monitors into one image
+                        monitors = sct.monitors[
+                            1:
+                        ]  # Skip index 0 which is all monitors combined
+                        if not monitors:
+                            time.sleep(0.5)
+                            continue
+
+                        # Calculate total size
+                        total_width = sum(m["width"] for m in monitors)
+                        max_height = max(m["height"] for m in monitors)
+
+                        # Create combined image
+                        combined = Image.new("RGB", (total_width, max_height))
+                        x_offset = 0
+                        for m in monitors:
+                            img = sct.grab(m)
+                            pil_img = Image.frombytes(
+                                "RGB", img.size, img.bgra, "raw", "BGRX"
+                            )
+                            combined.paste(pil_img, (x_offset, 0))
+                            x_offset += m["width"]
+                    else:
+                        monitor_idx = int(mon_str.split(" ")[1])
+                        if monitor_idx >= len(sct.monitors):
+                            monitor_idx = 1
+
+                        img = sct.grab(sct.monitors[monitor_idx])
+                        combined = Image.frombytes(
+                            "RGB", img.size, img.bgra, "raw", "BGRX"
+                        )
+
                     buffer = io.BytesIO()
-                    pil_img.save(buffer, format="JPEG", quality=self.quality)
+                    combined.save(buffer, format="JPEG", quality=self.quality)
                     self.send_packet(TYPE_FRAME, buffer.getvalue())
 
                     # Target 15 FPS for maximum stability
