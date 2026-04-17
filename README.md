@@ -1,63 +1,53 @@
-# WiFiMonitor Pro
+# luas-in
 
-WiFiMonitor Pro is a powerful, low-latency screen-sharing and productivity tool designed for Windows hosts and cross-platform clients. It turns your client device into a versatile extension of your workstation.
+`luas-in` adalah solusi *open-source* untuk memperluas layar laptop Windows ke perangkat Linux dan Android dalam jaringan lokal (LAN) dengan performa tinggi. Proyek ini menggunakan arsitektur modular dengan RTSP/H.264 untuk latensi rendah.
 
-## 🚀 Features
+## 🚀 Fitur Utama
+- **Video Streaming**: Menggunakan RTSP/H.264 dengan akselerasi perangkat keras via PyAV (FFmpeg).
+- **Client Cross-Platform**: Aplikasi client berbasis Flet (Flutter) yang mendukung Linux dan Android.
+- **Input Forwarding**: Mouse dan keyboard pada client dapat mengontrol host Windows (server).
+- **Modular Core**: Logika networking terpusat pada `luasin_core.py`.
 
-- **Screen Sharing**: High-performance (30 FPS) screen capture and broadcasting.
-- **Extended Display Mode**: Select specific monitors to share, allowing you to use your client as an external display.
-- **Clipboard Sync**: Automatic, real-time clipboard synchronization between server and client.
-- **File Transfer**: Send files from the server to all connected clients with progress tracking.
-- **Immersive Fullscreen**: Truly borderless viewing mode (F11) on the client side.
-- **Modern UI**: Built with CustomTkinter for a premium dark-themed experience.
+## 🛠️ Instalasi
 
-## 🛠️ Installation
-
-### Prerequisites
+### Prasyarat
 - Python 3.10+
-- OS: Windows (Server), Any (Client)
+- Host (Windows): `customtkinter`, `mss`, `Pillow`, `pyperclip`, `av`, `pynput`
+- Client (Linux/Android): `flet`, `av`
 
 ### Setup
-1. Clone the repository:
+1. Clone repository:
    ```bash
-   git clone <your-repo-url>
+   git clone <url-repo>
    cd luas-in
    ```
-2. Install dependencies:
+2. Instal dependensi server (Windows):
    ```bash
-   pip install customtkinter mss Pillow pyperclip
+   pip install customtkinter mss Pillow pyperclip av pynput
+   ```
+3. Instal dependensi client (Linux/Android):
+   ```bash
+   pip install flet av
    ```
 
-## 📖 Usage
+## 📖 Penggunaan
 
 ### Server (Windows)
-1. Run `python server.py`.
-2. Configure the **Port** and **Password**.
-3. Select the **Target Monitor** if you have multiple displays.
-4. Click **Start Server**.
-5. Use the **Send File** button to broadcast files or copy text to share it via the clipboard.
+1. Jalankan `python server.py`.
+2. Masukkan Port dan Password, lalu klik **Start Server**.
+3. Pastikan host terhubung ke jaringan lokal yang sama dengan client.
 
-### How to use Extended Mode (Monitor Eksternal)
-Agar Client bisa menjadi monitor kedua yang terpisah (Extended Mode), Windows harus "melihat" adanya monitor kedua di sisi Server.
-- **Opsi A (Fisik)**: Colokkan monitor fisik atau dummy HDMI plug ke Laptop Server.
-- **Opsi B (Virtual - Rekomendasi)**: Gunakan driver monitor virtual seperti [IddSampleDriver](https://github.com/roshkins/IddSampleDriver/releases) atau [usbmmIdd](https://www.amyuni.com/forum/viewtopic.php?t=3030).
-  1. Install driver tersebut di Windows Server.
-  2. Tekan `Win + P` di keyboard, pilih **Extend**.
-  3. Buka WiFiMonitor Server, pilih **Monitor 1** (atau Monitor 2 yang baru muncul).
-  4. Jalankan Client, maka Client akan menampilkan desktop kedua Anda.
+### Client (Linux/Android)
+1. Jalankan `python client_flet.py`.
+2. Masukkan alamat IP Server, port, dan password.
+3. Klik **Connect** untuk memulai streaming.
 
-### Client
-1. Run `python client.py`.
-2. Enter the Server's IP Address, Port, and Password.
-3. Click **Connect**.
-4. Press **F11** for immersive fullscreen mode.
-5. Received files will be saved in the `downloads/` folder.
+## 🏗️ Arsitektur
 
-## 📁 Project Structure
-- `server.py`: The Windows host application.
-- `client.py`: The cross-platform viewer application.
-- `.gitignore`: Files to be ignored by Git.
-- `downloads/`: Default folder for received files on the client side.
+### Komponen
+- `luasin_core.py`: Pustaka inti yang menangani networking, otentikasi, dan RTSP streaming.
+- `server.py`: Antarmuka server Windows berbasis CustomTkinter.
+- `client_flet.py`: Antarmuka client lintas platform berbasis Flet.
 
-## ⚖️ License
+## ⚖️ Lisensi
 MIT
