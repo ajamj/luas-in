@@ -19,13 +19,15 @@ TYPE_CLIPBOARD = 0x01
 TYPE_FILE_START = 0x02
 TYPE_FILE_CHUNK = 0x03
 TYPE_FILE_END = 0x04
+TYPE_REMOTE_FRAME = 0x05  # Send to server as remote display
+
 
 class WiFiMonitorClient(ctk.CTk):
     def __init__(self):
         super().__init__()
         self.title("WiFiMonitor - Client Pro")
         self.geometry("1100x850")
-        
+
         # State
         self.client_socket = None
         self.running = False
@@ -34,10 +36,10 @@ class WiFiMonitorClient(ctk.CTk):
         self.downloads_path = os.path.join(os.getcwd(), "downloads")
         if not os.path.exists(self.downloads_path):
             os.makedirs(self.downloads_path)
-        
+
         self.tk_image = None
         self.updating_frame = False
-        
+
         self.init_ui()
 
     def init_ui(self):
@@ -47,45 +49,87 @@ class WiFiMonitorClient(ctk.CTk):
         # Control Frame
         self.controls_frame = ctk.CTkFrame(self)
         self.controls_frame.grid(row=0, column=0, padx=20, pady=10, sticky="ew")
-        
+
         self.ip_input = ctk.CTkEntry(self.controls_frame, placeholder_text="Server IP")
         self.ip_input.insert(0, "127.0.0.1")
         self.ip_input.pack(side="left", padx=5, pady=10, fill="x", expand=True)
-        
-        self.port_input = ctk.CTkEntry(self.controls_frame, placeholder_text="Port", width=70)
+
+        self.port_input = ctk.CTkEntry(
+            self.controls_frame, placeholder_text="Port", width=70
+        )
         self.port_input.insert(0, "5000")
         self.port_input.pack(side="left", padx=5, pady=10)
-        
-        self.pass_input = ctk.CTkEntry(self.controls_frame, placeholder_text="Password", show="*", width=100)
+
+        self.pass_input = ctk.CTkEntry(
+            self.controls_frame, placeholder_text="Password", show="*", width=100
+        )
         self.pass_input.insert(0, "1234")
         self.pass_input.pack(side="left", padx=5, pady=10)
-        
-        self.btn_connect = ctk.CTkButton(self.controls_frame, text="Connect", command=self.toggle_connection, width=100)
+
+        self.btn_connect = ctk.CTkButton(
+            self.controls_frame,
+            text="Connect",
+            command=self.toggle_connection,
+            width=100,
+        )
         self.btn_connect.pack(side="left", padx=5, pady=10)
 
-        self.btn_fullscreen = ctk.CTkButton(self.controls_frame, text="Full Screen", command=self.toggle_fullscreen, width=100, fg_color="#34495e", hover_color="#2c3e50")
+        self.btn_fullscreen = ctk.CTkButton(
+            self.controls_frame,
+            text="Full Screen",
+            command=self.toggle_fullscreen,
+            width=100,
+            fg_color="#34495e",
+            hover_color="#2c3e50",
+        )
         self.btn_fullscreen.pack(side="left", padx=5, pady=10)
 
-        self.btn_send = ctk.CTkButton(self.controls_frame, text="Send File", command=self.send_file_dialog, width=100, fg_color="#27ae60", hover_color="#219150")
+        self.btn_send = ctk.CTkButton(
+            self.controls_frame,
+            text="Send File",
+            command=self.send_file_dialog,
+            width=100,
+            fg_color="#27ae60",
+            hover_color="#219150",
+        )
         self.btn_send.pack(side="left", padx=5, pady=10)
 
-        self.btn_clip = ctk.CTkButton(self.controls_frame, text="Sync Clip", command=self.send_clipboard, width=100, fg_color="#8e44ad", hover_color="#732d91")
+        self.btn_clip = ctk.CTkButton(
+            self.controls_frame,
+            text="Sync Clip",
+            command=self.send_clipboard,
+            width=100,
+            fg_color="#8e44ad",
+            hover_color="#732d91",
+        )
         self.btn_clip.pack(side="left", padx=5, pady=10)
+
+        self.cb_remote_var = ctk.BooleanVar(value=False)
+        self.cb_remote = ctk.CTkCheckBox(
+            self.controls_frame,
+            text="Remote Share",
+            variable=self.cb_remote_var,
+            command=self.toggle_remote,
+            width=100,
+        )
+        self.cb_remote.pack(side="left", padx=5, pady=10)
 
         # Display Area
         self.display_frame = ctk.CTkFrame(self, fg_color="black")
         self.display_frame.grid(row=1, column=0, padx=20, pady=(0, 10), sticky="nsew")
-        
-        self.display_label = ctk.CTkLabel(self.display_frame, text="No Signal", font=ctk.CTkFont(size=20))
+
+        self.display_label = ctk.CTkLabel(
+            self.display_frame, text="No Signal", font=ctk.CTkFont(size=20)
+        )
         self.display_label.pack(expand=True, fill="both")
 
         # Status Bar
         self.status_bar = ctk.CTkFrame(self, height=30)
         self.status_bar.grid(row=2, column=0, padx=20, pady=(0, 10), sticky="ew")
-        
+
         self.lbl_status = ctk.CTkLabel(self.status_bar, text="Disconnected")
         self.lbl_status.pack(side="left", padx=10)
-        
+
         self.progress = ctk.CTkProgressBar(self.status_bar, width=200)
         self.progress.set(0)
         self.progress.pack(side="right", padx=10, pady=5)
@@ -93,11 +137,15 @@ class WiFiMonitorClient(ctk.CTk):
 
         # Bindings
         self.bind("<F11>", lambda e: self.toggle_fullscreen())
-        self.bind("<Escape>", lambda e: self.exit_fullscreen() if self.full_screen else None)
+        self.bind(
+            "<Escape>", lambda e: self.exit_fullscreen() if self.full_screen else None
+        )
 
     def toggle_connection(self):
-        if not self.running: self.start_connection()
-        else: self.stop_connection()
+        if not self.running:
+            self.start_connection()
+        else:
+            self.stop_connection()
 
     def start_connection(self):
         ip = self.ip_input.get()
@@ -115,19 +163,24 @@ class WiFiMonitorClient(ctk.CTk):
                 self.lbl_status.configure(text=f"Connected to {ip}")
                 self.client_socket.settimeout(None)
                 threading.Thread(target=self.receive_loop, daemon=True).start()
-            else: self.show_error("Invalid Password")
-        except Exception as e: self.show_error(str(e))
+            else:
+                self.show_error("Invalid Password")
+        except Exception as e:
+            self.show_error(str(e))
 
     def stop_connection(self):
         self.running = False
         if self.client_socket:
-            try: self.client_socket.close()
-            except: pass
+            try:
+                self.client_socket.close()
+            except:
+                pass
         self.btn_connect.configure(text="Connect", fg_color=["#3B8ED0", "#1F6AA5"])
         self.lbl_status.configure(text="Disconnected")
         try:
             self.display_label.configure(image=None, text="No Signal")
-        except: pass
+        except:
+            pass
         self.tk_image = None
         self.updating_frame = False
 
@@ -136,40 +189,48 @@ class WiFiMonitorClient(ctk.CTk):
             try:
                 # Header: [1 byte type][4 bytes length]
                 header = self._recv_all(5)
-                if not header: break
+                if not header:
+                    break
                 ptype, size = struct.unpack("!BI", header)
                 data = self._recv_all(size)
-                if data is None: break
-                
+                if data is None:
+                    break
+
                 if ptype == TYPE_FRAME:
                     if not self.updating_frame:
                         self.updating_frame = True
                         image = Image.open(io.BytesIO(data))
                         self.after(0, lambda: self.update_frame(image))
                 elif ptype == TYPE_CLIPBOARD:
-                    text = data.decode('utf-8')
+                    text = data.decode("utf-8")
                     pyperclip.copy(text)
-                    self.after(0, lambda: self.lbl_status.configure(text="Clipboard Synced"))
+                    self.after(
+                        0, lambda: self.lbl_status.configure(text="Clipboard Synced")
+                    )
                 elif ptype == TYPE_FILE_START:
-                    decoded = data.decode('utf-8')
+                    decoded = data.decode("utf-8")
                     name, fsize = decoded.split("|")
                     self.incoming_file = {
-                        "name": name, 
-                        "size": int(fsize), 
-                        "received": 0, 
-                        "handle": open(os.path.join(self.downloads_path, name), "wb")
+                        "name": name,
+                        "size": int(fsize),
+                        "received": 0,
+                        "handle": open(os.path.join(self.downloads_path, name), "wb"),
                     }
                     self.after(0, self.show_progress)
                 elif ptype == TYPE_FILE_CHUNK:
                     if self.incoming_file:
                         self.incoming_file["handle"].write(data)
                         self.incoming_file["received"] += len(data)
-                        progress = self.incoming_file["received"] / self.incoming_file["size"]
+                        progress = (
+                            self.incoming_file["received"] / self.incoming_file["size"]
+                        )
                         self.after(0, lambda p=progress: self.progress.set(p))
                 elif ptype == TYPE_FILE_END:
                     if self.incoming_file:
                         self.incoming_file["handle"].close()
-                        self.after(0, lambda n=self.incoming_file["name"]: self.finish_file(n))
+                        self.after(
+                            0, lambda n=self.incoming_file["name"]: self.finish_file(n)
+                        )
                         self.incoming_file = None
             except Exception as e:
                 break
@@ -180,35 +241,39 @@ class WiFiMonitorClient(ctk.CTk):
         while len(data) < n:
             try:
                 packet = self.client_socket.recv(n - len(data))
-                if not packet: return None
+                if not packet:
+                    return None
                 data.extend(packet)
-            except: return None
+            except:
+                return None
         return data
 
     def update_frame(self, pil_image):
-        if not self.running: 
+        if not self.running:
             self.updating_frame = False
             return
-        
+
         try:
             w, h = self.display_frame.winfo_width(), self.display_frame.winfo_height()
             if w > 10 and h > 10:
                 img_w, img_h = pil_image.size
-                ratio = min(w/img_w, h/img_h)
+                ratio = min(w / img_w, h / img_h)
                 new_w = int(img_w * ratio)
                 new_h = int(img_h * ratio)
-                
+
                 # Keep reference to old image to prevent immediate GC
                 prev_image = self.tk_image
-                
+
                 # Use CTKImage for better compatibility and scaling
-                self.tk_image = ctk.CTkImage(light_image=pil_image, dark_image=pil_image, size=(new_w, new_h))
-                
+                self.tk_image = ctk.CTkImage(
+                    light_image=pil_image, dark_image=pil_image, size=(new_w, new_h)
+                )
+
                 try:
                     self.display_label.configure(image=self.tk_image, text="")
                 except Exception as e:
                     print(f"Update frame error: {e}")
-                
+
                 # Explicitly release old image reference
                 del prev_image
         except Exception as e:
@@ -237,7 +302,7 @@ class WiFiMonitorClient(ctk.CTk):
             self.status_bar.grid_remove()
             self.display_frame.grid_configure(padx=0, pady=0)
             self.display_frame.grid(row=0, column=0, rowspan=3, sticky="nsew")
-        else: 
+        else:
             self.exit_fullscreen()
 
     def exit_fullscreen(self):
@@ -250,7 +315,8 @@ class WiFiMonitorClient(ctk.CTk):
         self.btn_fullscreen.configure(text="Full Screen")
 
     def send_packet(self, ptype, data):
-        if not self.client_socket or not self.running: return
+        if not self.client_socket or not self.running:
+            return
         try:
             header = struct.pack("!BI", ptype, len(data))
             self.client_socket.sendall(header + data)
@@ -258,29 +324,36 @@ class WiFiMonitorClient(ctk.CTk):
             self.after(0, lambda: self.show_error(f"Send Error: {e}"))
 
     def send_file_dialog(self):
-        if not self.running: return
+        if not self.running:
+            return
         filepath = filedialog.askopenfilename()
         if filepath:
-            threading.Thread(target=self.process_file_send, args=(filepath,), daemon=True).start()
+            threading.Thread(
+                target=self.process_file_send, args=(filepath,), daemon=True
+            ).start()
 
     def process_file_send(self, filepath):
         try:
             filename = os.path.basename(filepath)
             filesize = os.path.getsize(filepath)
-            import time # Ensure time is available for sleep
-            self.after(0, lambda: self.lbl_status.configure(text=f"Sending: {filename}"))
-            
+            import time  # Ensure time is available for sleep
+
+            self.after(
+                0, lambda: self.lbl_status.configure(text=f"Sending: {filename}")
+            )
+
             # File Start
-            self.send_packet(TYPE_FILE_START, f"{filename}|{filesize}".encode('utf-8'))
-            
+            self.send_packet(TYPE_FILE_START, f"{filename}|{filesize}".encode("utf-8"))
+
             # Chunks
             with open(filepath, "rb") as f:
                 while self.running:
                     chunk = f.read(64 * 1024)
-                    if not chunk: break
+                    if not chunk:
+                        break
                     self.send_packet(TYPE_FILE_CHUNK, chunk)
                     time.sleep(0.001)
-            
+
             # File End
             self.send_packet(TYPE_FILE_END, b"DONE")
             self.after(0, lambda: self.lbl_status.configure(text=f"Sent: {filename}"))
@@ -288,14 +361,36 @@ class WiFiMonitorClient(ctk.CTk):
             self.after(0, lambda: self.show_error(str(e)))
 
     def send_clipboard(self):
-        if not self.running: return
+        if not self.running:
+            return
         try:
             text = pyperclip.paste()
             if text:
-                self.send_packet(TYPE_CLIPBOARD, text.encode('utf-8'))
+                self.send_packet(TYPE_CLIPBOARD, text.encode("utf-8"))
                 self.lbl_status.configure(text="Clipboard Synced to Server")
         except Exception as e:
             self.show_error(str(e))
+
+    def toggle_remote(self):
+        if self.cb_remote_var.get() and self.running:
+            threading.Thread(target=self.remote_capture_loop, daemon=True).start()
+        self.lbl_status.configure(
+            text="Remote Share ON" if self.cb_remote_var.get() else "Remote Share OFF"
+        )
+
+    def remote_capture_loop(self):
+        with mss() as sct:
+            while self.running and self.cb_remote_var.get():
+                try:
+                    img = sct.grab(sct.monitors[0])
+                    pil_img = Image.frombytes("RGB", img.size, img.bgra, "raw", "BGRX")
+                    buffer = io.BytesIO()
+                    pil_img.save(buffer, format="JPEG", quality=70)
+                    self.send_packet(TYPE_REMOTE_FRAME, buffer.getvalue())
+                    time.sleep(1 / 15)
+                except:
+                    pass
+
 
 if __name__ == "__main__":
     app = WiFiMonitorClient()

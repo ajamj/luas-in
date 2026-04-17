@@ -23,6 +23,7 @@ TYPE_CLIPBOARD = 0x01
 TYPE_FILE_START = 0x02
 TYPE_FILE_CHUNK = 0x03
 TYPE_FILE_END = 0x04
+TYPE_REMOTE_FRAME = 0x05  # Remote client screen
 
 from luasin_core import LuasinCore
 
@@ -41,6 +42,7 @@ class WiFiMonitorServer(ctk.CTk):
         # Core State
         self.streaming = False
         self.clients = []
+        self.remote_frame_data = None  # Remote client screen
         self.quality = 70
         self.server_socket = None
         self.last_clipboard = ""
@@ -97,6 +99,7 @@ class WiFiMonitorServer(ctk.CTk):
         )
         self.monitor_combo.set(self.get_monitors()[0])
         self.monitor_combo.grid(row=4, column=1, padx=10, pady=5, sticky="ew")
+        self.remote_frame = None  # Remote client frame
 
         self.lbl_ext_info = ctk.CTkLabel(
             self.config_frame,
@@ -159,7 +162,7 @@ class WiFiMonitorServer(ctk.CTk):
 
     def get_monitors(self):
         with mss() as sct:
-            monitors = []
+            monitors = ["Remote"]
             for i, monitor in enumerate(sct.monitors):
                 label = (
                     f"Monitor {i} ({monitor['width']}x{monitor['height']})"
@@ -342,6 +345,10 @@ class WiFiMonitorServer(ctk.CTk):
                     if input_type == 0:  # Mouse move
                         x, y = struct.unpack("!HH", data[1:5])
                         mouse.position = (x, y)
+                elif ptype == TYPE_REMOTE_FRAME:
+                    # Receive remote client screen
+                    self.remote_frame_data = data
+                    self.add_log(f"Remote frame received from {addr}")
             except Exception as e:
                 self.add_log(f"Client {addr} error: {e}")
                 break
@@ -378,7 +385,9 @@ class WiFiMonitorServer(ctk.CTk):
                 try:
                     mon_str = self.monitor_combo.get()
 
-                    if mon_str == "All Monitors":
+                    if mon_str == "Remote" and self.remote_frame_data:
+                        combined = Image.open(io.BytesIO(self.remote_frame_data))
+                    elif mon_str == "All Monitors":
                         # Extended mode: stitch all monitors into one image
                         monitors = sct.monitors[
                             1:
